@@ -1,0 +1,16 @@
+version: '3.2'
+services:
+  localstack_http:
+    image: localstack/localstack
+    environment:
+      - SERVICES=s3,sqs,sns,kms,kinesis
+    volumes:
+      # c.f. https://docs.localstack.cloud/references/init-hooks/
+      - ./init:/etc/localstack/init
+    ports:
+      - "4566:4566"
+    networks:
+      - localstack_core
+
+networks:
+  localstack_core:

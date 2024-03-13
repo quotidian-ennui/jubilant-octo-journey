@@ -1,0 +1,13 @@
+version: '3.7'
+services:
+  plantuml:
+    container_name: plantuml
+    ## Set via direnv
+    image: plantuml/plantuml-server:${PLANTUML_VERSION}
+    ports:
+      - "58080:8080"
+    networks:
+      - plantuml
+
+networks:
+  plantuml:

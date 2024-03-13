@@ -1,0 +1,18 @@
+version: '3.7'
+services:
+  dillinger:
+    container_name: dillinger
+    image: linuxserver/dillinger:${DILLINGER_VERSION}
+    ports:
+      - "58081:8080"
+    networks:
+      - dillinger
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    cap_add:
+      - SYS_ADMIN
+
+networks:
+  dillinger:

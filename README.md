@@ -1,2 +1,2 @@
 # jubilant-octo-journey
-Thing I run locally via docker-compose
+Things I run locally via docker-compose

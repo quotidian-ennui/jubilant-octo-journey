@@ -1,0 +1,5 @@
+
+#!/bin/bash
+
+export DILLINGER_VERSION=$(image-tags.sh docker.io linuxserver/dillinger | egrep "^[0-9]+\.[0-9]+\.[0-9]+$" | sort -Vr | head -n 1 )
+echo DILLINGER_VERSION="${DILLINGER_VERSION}"

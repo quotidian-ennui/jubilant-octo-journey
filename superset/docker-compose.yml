@@ -1,0 +1,27 @@
+version: '3.2'
+services:
+  superset:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lewinc/superset
+    hostname: supserset
+    container_name: supserset
+    environment:
+      - SUPERSET_SECRET_KEY=hello_world
+    ports:
+      - "8088:8088"
+    # This replaces the default 'CMD' instruction from
+    # the apache/superset image, which is basically run-server.sh
+    command: >
+      bash -c '
+        superset fab create-admin \
+              --username admin \
+              --firstname Superset \
+              --lastname Admin \
+              --email admin@superset.com \
+              --password admin;
+        superset db upgrade;
+        superset init;
+        /usr/bin/run-server.sh;
+      '

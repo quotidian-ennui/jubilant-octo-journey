@@ -1,0 +1,6 @@
+
+#!/bin/bash
+
+ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+export LOCALSTACK_VERSION=$(image-tags docker.io localstack/localstack | egrep "^[0-9]+\.[0-9]+\.[0-9]+-$ARCH" | sort -Vr | head -n 1 )
+echo LOCALSTACK_VERSION="${LOCALSTACK_VERSION}"

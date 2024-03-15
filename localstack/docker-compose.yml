@@ -1,7 +1,7 @@
 version: '3.2'
 services:
   localstack_http:
-    image: localstack/localstack
+    image: localstack/localstack:${LOCALSTACK_VERSION}
     environment:
       - SERVICES=s3,sqs,sns,kms,kinesis
     volumes:

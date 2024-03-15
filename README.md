@@ -41,4 +41,15 @@ image-tags() {
       ;;
   esac
 }
+
+docker-health-check() {
+  local container_id=$1
+  local state=$(docker inspect -f {{.State.Health.Status}} $container_id)
+  while [ "$state" != "healthy" ]; do
+    echo Waiting for ${container_id} to reach 'healthy'
+    sleep 5
+    state=$(docker inspect -f {{.State.Health.Status}} $container_id)
+  done
+  echo ${container_id} is 'healthy'
+}
 ```

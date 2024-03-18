@@ -9,7 +9,7 @@ set positional-arguments := true
   docker compose "$@"
 
 # Configure the UI
-configure_ui: 
+configure_ui:
   #!/usr/bin/env bash
 
   set -eo pipefail
@@ -54,6 +54,7 @@ configure_ui:
     -X PUT "http://localhost:7750/pulsar-manager/environments/environment" \
     -d '{ "bookie": "http://broker:6650", "broker": "http://broker:8080", "name": "docker"}'
   echo -e "\n>>> Created Environment"
+  rm -f "$COOKIE_JAR"
   echo "http://localhost:9527 should now be configured ('admin/apachepulsar')"
 
 # Convenience to startup and wait for ui readiness

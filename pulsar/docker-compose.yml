@@ -16,13 +16,42 @@ services:
     image: ubuntu:jammy
     container_name: docker_perms
     user: root
+    restart: "no"
     volumes:
       - zookeeper:/tmp/zookeeper
       - bookkeeper:/tmp/bookkeeper
-    command: >
-      bash -c "chown -R 10000 /tmp/zookeeper && chown -R 10000 /tmp/bookkeeper"
+    entrypoint: ["/usr/bin/bash","-c"]
+    command:
+      - |
+        chown -R 10000 /tmp/zookeeper 
+        chown -R 10000 /tmp/bookkeeper
+
+  # ui_setup:
+  #   image: ubuntu:jammy
+  #   container_name: ui_setup
+  #   user: root
+  #   restart: "no"
+  #   depends_on:
+  #     pulsar_ui:
+  #       condition: service_healthy
+  #   networks:
+  #     - pulsar
+  #   entrypoint: ["/usr/bin/bash","-c"]
+  #   command: 
+  #     - |
+  #       apt-get -y -qqq update && \
+  #         apt-get install --no-install-recommends -qqq -y curl >/dev/null 2>&1 && \
+  #         rm -rf /var/lib/apt/lists/*
+  #       CSRF_TOKEN=$(curl -s http://pulsar_ui:7750/pulsar-manager/csrf-token)
+  #       curl -s \
+  #         -H 'X-XSRF-TOKEN: $$CSRF_TOKEN' \
+  #         -H 'Cookie: XSRF-TOKEN=$$CSRF_TOKEN;' \
+  #         -H "Content-Type: application/json" \
+  #         -X PUT http://pulsar_ui:7750/pulsar-manager/users/superuser \
+  #         -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
 
   # Start zookeeper
+  # @see cluster_file_perms
   zookeeper:
     image: apachepulsar/pulsar:${PULSAR_VERSION}
     container_name: zookeeper
@@ -67,6 +96,7 @@ services:
         condition: service_healthy
 
   # Start bookie
+  # @see cluster_file_perms
   bookie:
     image: apachepulsar/pulsar:${PULSAR_VERSION}
     container_name: bookie
@@ -121,3 +151,28 @@ services:
       - "6650:6650"
       - "8080:8080"
     command: bash -c "bin/apply-config-from-env.py conf/broker.conf && exec bin/pulsar broker"
+
+  # Pulsar manager for UI action
+  pulsar_ui:
+    image: apachepulsar/pulsar-manager:latest
+    container_name: pulsar_ui
+    hostname: pulsar_ui
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties
+      - JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m
+    ports:
+      - "9527:9527"
+      - "7750:7750"    
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:7750/pulsar-manager/csrf-token | grep -q 'HTTP/1.1 200'",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 5

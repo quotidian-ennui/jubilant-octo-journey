@@ -1,0 +1,65 @@
+set positional-arguments := true
+
+[private]
+@help:
+  just --list --list-prefix "  "
+
+# Wraps docker compose (up -d | down | stop )
+@docker *args='':
+  docker compose "$@"
+
+# Configure the UI
+configure_ui: 
+  #!/usr/bin/env bash
+
+  set -eo pipefail
+  docker-health-check() {
+    local container_id=$1
+    local state=$(docker inspect -f {{{{.State.Health.Status}} $container_id)
+    while [ "$state" != "healthy" ]; do
+      echo Waiting for ${container_id} to reach 'healthy'
+      sleep 5
+      state=$(docker inspect -f {{{{.State.Health.Status}} $container_id)
+    done
+    echo ${container_id} is 'healthy'
+  }
+
+  docker-health-check pulsar_ui
+  CSRF_TOKEN=$(curl -s http://localhost:7750/pulsar-manager/csrf-token)
+  # In order to use pulsar-manager endpoints we need to store cookies so capture the cookies
+  # in a file.
+  COOKIE_JAR=$(mktemp --tmpdir cookies.XXXXXX)
+  curl -fSsL \
+    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
+    -H 'Content-Type: application/json' \
+    -X PUT http://localhost:7750/pulsar-manager/users/superuser \
+    -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
+  echo -e "\n>>> Created User..."
+  # Cheeky use of dump headers since you can't really use -I with -d
+  LOGIN_TOKEN=$(curl -fSsL -j -c "$COOKIE_JAR" -D - \
+    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
+    -H 'Content-Type: application/json' \
+    -X POST "http://localhost:7750/pulsar-manager/login" \
+    -d '{ "username": "admin", "password": "apachepulsar"}' -o /dev/null | grep "token:" )
+  echo ">>> Logged in..."
+  ## Now create the environment...
+  curl -fSsL -b "$COOKIE_JAR" \
+    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
+    -H 'Content-Type: application/json' \
+    -H "$LOGIN_TOKEN" \
+    -H "username: admin" \
+    -X PUT "http://localhost:7750/pulsar-manager/environments/environment" \
+    -d '{ "bookie": "http://broker:6650", "broker": "http://broker:8080", "name": "docker"}'
+  echo -e "\n>>> Created Environment"
+  echo "http://localhost:9527 should now be configured ('admin/apachepulsar')"
+
+# Convenience to startup and wait for ui readiness
+ready: (docker "up" "-d") configure_ui
+
+# Cleanup & Purge any data
+@purge:
+  docker compose down
+  -docker volume rm pulsar_zookeeper pulsar_bookkeeper >/dev/null 2>&1

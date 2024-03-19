@@ -1,11 +1,10 @@
 set positional-arguments := true
 
+TF_BINARY := env_var_or_default("TF_BINARY", "tofu")
 PULSAR_UI_USERNAME := env_var_or_default("PULSAR_UI_USERNAME", "admin")
 PULSAR_UI_PASSWORD := env_var_or_default("PULSAR_UI_PASSWORD", "pulsar")
-# Check http://localhost:7750/swagger-ui.html
+# Check http://localhost:7750/swagger-ui.html for more swagger fun.
 PULSAR_UI_LOGIN_URL := "http://localhost:7750/pulsar-manager/login"
-PULSAR_UI_SUPERUSER_URL := "http://localhost:7750/pulsar-manager/users/superuser"
-PULSAR_UI_ENVS_URL := "http://localhost:7750/pulsar-manager/environments/environment"
 
 [private]
 @help:
@@ -52,7 +51,7 @@ configure_ui:
   if [[ -z "$LOGIN_TOKEN" ]]; then
     curl -fSsL \
       -H @"$HEADER_JAR" \
-      -X PUT "{{ PULSAR_UI_SUPERUSER_URL }}" \
+      -X PUT "http://localhost:7750/pulsar-manager/users/superuser" \
       -d '{"name": "{{ PULSAR_UI_USERNAME }}", "password": "{{ PULSAR_UI_PASSWORD }}", "description": "test", "email": "username@test.org"}'
     echo -e "\n>>> Created User..."
     # Cheeky use of dump headers since you can't really use -I with -d
@@ -68,7 +67,7 @@ configure_ui:
     -H @"$HEADER_JAR" \
     -H "$LOGIN_TOKEN" \
     -H "username: {{ PULSAR_UI_USERNAME }}" \
-    -X PUT "{{ PULSAR_UI_ENVS_URL }}" \
+    -X PUT "http://localhost:7750/pulsar-manager/environments/environment" \
     -d '{ "bookie": "http://broker:6650", "broker": "http://broker:8080", "name": "docker"}'
   echo -e "\n>>> Created Environment"
   rm -f "$COOKIE_JAR" "$HEADER_JAR"

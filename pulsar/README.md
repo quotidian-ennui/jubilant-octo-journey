@@ -4,13 +4,13 @@
 
 # TLDR;
 
-- `just ready`
+- `just start`
 - point your browser at http://localhost:9527 and login as admin/apachepulsar
     - a 'docker' environment should be available.
 
 
 ```
-bsh ❯ just ready
+bsh ❯ just start
 [+] Running 6/10
  ⠙ Network pulsar_default      Created
  ⠙ Network pulsar_pulsar       Created 

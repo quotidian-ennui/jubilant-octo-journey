@@ -1,5 +1,12 @@
 set positional-arguments := true
 
+PULSAR_UI_USERNAME := env_var_or_default("PULSAR_UI_USERNAME", "admin")
+PULSAR_UI_PASSWORD := env_var_or_default("PULSAR_UI_PASSWORD", "pulsar")
+# Check http://localhost:7750/swagger-ui.html
+PULSAR_UI_LOGIN_URL := "http://localhost:7750/pulsar-manager/login"
+PULSAR_UI_SUPERUSER_URL := "http://localhost:7750/pulsar-manager/users/superuser"
+PULSAR_UI_ENVS_URL := "http://localhost:7750/pulsar-manager/environments/environment"
+
 [private]
 @help:
   just --list --list-prefix "  "
@@ -28,37 +35,47 @@ configure_ui:
   CSRF_TOKEN=$(curl -s http://localhost:7750/pulsar-manager/csrf-token)
   # In order to use pulsar-manager endpoints we need to store cookies so capture the cookies
   # in a file.
-  COOKIE_JAR=$(mktemp --tmpdir cookies.XXXXXX)
-  curl -fSsL \
-    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
-    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
-    -H 'Content-Type: application/json' \
-    -X PUT http://localhost:7750/pulsar-manager/users/superuser \
-    -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
-  echo -e "\n>>> Created User..."
-  # Cheeky use of dump headers since you can't really use -I with -d
+  COOKIE_JAR=$(mktemp --tmpdir docker-pulsar-cookies.XXXXXX)
+  HEADER_JAR=$(mktemp --tmpdir docker-pulsar-headers.XXXXXX)
+  {
+    echo "X-XSRF-TOKEN: $CSRF_TOKEN"
+    echo "Cookie: XSRF-TOKEN=$CSRF_TOKEN;"
+    echo "Content-Type: application/json"
+  } > "$HEADER_JAR"
+
+  ## This is a bit dumb but we try to login, and if its successful then we don't need to create a user?
+  ## The UI isn't that clever since it will create 2 users with the same name+password if you call superuser 2x...
   LOGIN_TOKEN=$(curl -fSsL -j -c "$COOKIE_JAR" -D - \
-    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
-    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
-    -H 'Content-Type: application/json' \
-    -X POST "http://localhost:7750/pulsar-manager/login" \
-    -d '{ "username": "admin", "password": "apachepulsar"}' -o /dev/null | grep "token:" )
+    -H @"$HEADER_JAR" \
+    -X POST "{{ PULSAR_UI_LOGIN_URL }}" \
+    -d '{ "username": "{{ PULSAR_UI_USERNAME }}", "password": "{{ PULSAR_UI_PASSWORD }}"}' -o /dev/null | grep "token:" ) || true
+  if [[ -z "$LOGIN_TOKEN" ]]; then
+    curl -fSsL \
+      -H @"$HEADER_JAR" \
+      -X PUT "{{ PULSAR_UI_SUPERUSER_URL }}" \
+      -d '{"name": "{{ PULSAR_UI_USERNAME }}", "password": "{{ PULSAR_UI_PASSWORD }}", "description": "test", "email": "username@test.org"}'
+    echo -e "\n>>> Created User..."
+    # Cheeky use of dump headers since you can't really use -I with -d
+    LOGIN_TOKEN=$(curl -fSsL -j -c "$COOKIE_JAR" -D - \
+      -H @"$HEADER_JAR" \
+      -X POST "{{ PULSAR_UI_LOGIN_URL }}" \
+      -d '{ "username": "{{ PULSAR_UI_USERNAME }}", "password": "{{ PULSAR_UI_PASSWORD }}"}' -o /dev/null | grep "token:" )
+  fi
   echo ">>> Logged in..."
-  ## Now create the environment...
+  ## Now create the environment...; if the environment exists
+  # we still get a 200 OK, so just emit the output.
   curl -fSsL -b "$COOKIE_JAR" \
-    -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
-    -H "Cookie: XSRF-TOKEN=$CSRF_TOKEN;" \
-    -H 'Content-Type: application/json' \
+    -H @"$HEADER_JAR" \
     -H "$LOGIN_TOKEN" \
-    -H "username: admin" \
-    -X PUT "http://localhost:7750/pulsar-manager/environments/environment" \
+    -H "username: {{ PULSAR_UI_USERNAME }}" \
+    -X PUT "{{ PULSAR_UI_ENVS_URL }}" \
     -d '{ "bookie": "http://broker:6650", "broker": "http://broker:8080", "name": "docker"}'
   echo -e "\n>>> Created Environment"
   rm -f "$COOKIE_JAR"
   echo "http://localhost:9527 should now be configured ('admin/apachepulsar')"
 
 # Convenience to startup and wait for ui readiness
-ready: (docker "up" "-d") configure_ui
+@start: (docker "up" "-d") configure_ui
 
 # Cleanup & Purge any data
 @purge:

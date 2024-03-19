@@ -71,8 +71,8 @@ configure_ui:
     -X PUT "{{ PULSAR_UI_ENVS_URL }}" \
     -d '{ "bookie": "http://broker:6650", "broker": "http://broker:8080", "name": "docker"}'
   echo -e "\n>>> Created Environment"
-  rm -f "$COOKIE_JAR"
-  echo "http://localhost:9527 should now be configured ('admin/apachepulsar')"
+  rm -f "$COOKIE_JAR" "$HEADER_JAR"
+  echo "http://localhost:9527 should now be configured ('{{ PULSAR_UI_USERNAME }}/{{ PULSAR_UI_PASSWORD }}')"
 
 # Convenience to startup and wait for ui readiness
 @start: (docker "up" "-d") configure_ui

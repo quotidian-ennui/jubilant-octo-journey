@@ -1,0 +1,6 @@
+
+#!/usr/bin/env bash
+
+export PULSAR_VERSION=$(image-tags docker.io apachepulsar/pulsar | egrep "^[0-9]+\.[0-9]+\.[0-9]+$" | sort -Vr | head -n 1)
+
+echo PULSAR_VERSION="${PULSAR_VERSION}"

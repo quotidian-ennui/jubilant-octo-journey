@@ -1,10 +1,24 @@
 # jubilant-octo-journey
 
-Some things I run locally via docker-compose; it's not all the things.
+Some things I run locally via docker-compose.
 
-> If you're authenticated to github via ghcli then `gh auth token` shows you your personal access token. Dangerous sure, but if someone already has access to your terminal then you have a different set of problems.
+| dir | purpose |
+|----|----|
+|generatedata| Generate random names & addresses |
+|localstack|Run localstack well, locally, with some bootstrapping|
+|md2pdf| use `dillinger` to convert markdown to PDF|
+|plantuml| Run a local plantuml server because we do markdown |
+|pulsar| Apache Pulsar |
+|rabbitmq| RabbitMQ with additional JMS bindings|
+|solace| Solace Event Broker with some TF shenanigans|
+|superset| Apache superset |
 
-There's reference to `image-tags`, which is basically this (make of it what you will).
+# Quickstart (won't be quick)
+
+- You probably want `direnv` in play because of the `.envrc` files.
+- If you're authenticated to github via ghcli then `gh auth token` shows you your personal access token. Dangerous sure, but if someone already has access to your terminal then you have a different set of problems.
+- There's reference to `image-tags`, which is basically this (make of it what you will); put it in a script in your path as `image-tags` or (as I have) add it as a bash function that's exported.
+  - note the use of `$GITHUB_USER`
 
 ```bash
 
@@ -41,6 +55,12 @@ image-tags() {
       ;;
   esac
 }
+
+```
+
+- For bonus points you can do this as a docker-health-check for a given container
+
+```bash
 
 docker-health-check() {
   local container_id=$1

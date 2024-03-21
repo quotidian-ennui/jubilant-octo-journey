@@ -1,0 +1,154 @@
+version: '3'
+networks:
+  pulsar:
+    driver: bridge
+
+volumes:
+  zookeeper:
+    driver: local
+  bookkeeper:
+    driver: local
+
+services:
+  # Do a chown of bookkeeper & zookeeper volumes
+  # https://pulsar.apache.org/docs/3.2.x/getting-started-docker-compose/#step-2-create-a-pulsar-cluster
+  cluster_file_perms:
+    image: ubuntu:jammy
+    container_name: docker_perms
+    user: root
+    restart: "no"
+    volumes:
+      - zookeeper:/tmp/zookeeper
+      - bookkeeper:/tmp/bookkeeper
+    entrypoint: ["/usr/bin/bash","-c"]
+    command:
+      - |
+        chown -R 10000 /tmp/zookeeper
+        chown -R 10000 /tmp/bookkeeper
+
+  # Start zookeeper
+  # @see cluster_file_perms
+  zookeeper:
+    image: apachepulsar/pulsar:${PULSAR_VERSION}
+    container_name: zookeeper
+    hostname: zookeeper
+    restart: on-failure
+    networks:
+      - pulsar
+    volumes:
+      - zookeeper:/pulsar/data/zookeeper
+    environment:
+      - metadataStoreUrl=zk:${PULSAR_ZK_SERVER}
+      - PULSAR_MEM=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
+             bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
+             exec bin/pulsar zookeeper"
+    depends_on:
+      cluster_file_perms:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "bin/pulsar-zookeeper-ruok.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Init cluster metadata
+  pulsar-init:
+    container_name: pulsar-init
+    hostname: pulsar-init
+    image: apachepulsar/pulsar:latest
+    networks:
+      - pulsar
+    command: >
+      bin/pulsar initialize-cluster-metadata \
+               --cluster ${PULSAR_CLUSTER_NAME} \
+               --zookeeper ${PULSAR_ZK_SERVER} \
+               --configuration-store ${PULSAR_ZK_SERVER} \
+               --web-service-url http://broker:8080 \
+               --broker-service-url pulsar://broker:6650
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+
+  # Start bookie
+  # @see cluster_file_perms
+  bookie:
+    image: apachepulsar/pulsar:${PULSAR_VERSION}
+    container_name: bookie
+    hostname: bookie
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - clusterName=${PULSAR_CLUSTER_NAME}
+      - zkServers=${PULSAR_ZK_SERVER}
+      - metadataServiceUri=metadata-store:zk:zookeeper:2181
+      # otherwise every time we run docker compose uo or down we fail to start due to Cookie
+      # See: https://github.com/apache/bookkeeper/blob/405e72acf42bb1104296447ea8840d805094c787/bookkeeper-server/src/main/java/org/apache/bookkeeper/bookie/Cookie.java#L57-68
+      - advertisedAddress=bookie
+      - BOOKIE_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      pulsar-init:
+        condition: service_completed_successfully
+      cluster_file_perms:
+        condition: service_completed_successfully
+    # Map the local directory to the container to avoid bookie startup failure due to insufficient container disks.
+    volumes:
+      - bookkeeper:/pulsar/data/bookkeeper
+    command: bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
+
+  # Start broker
+  broker:
+    image: apachepulsar/pulsar:${PULSAR_VERSION}
+    container_name: broker
+    hostname: broker
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - metadataStoreUrl=zk:${PULSAR_ZK_SERVER}
+      - zookeeperServers=${PULSAR_ZK_SERVER}
+      - clusterName=${PULSAR_CLUSTER_NAME}
+      - managedLedgerDefaultEnsembleSize=1
+      - managedLedgerDefaultWriteQuorum=1
+      - managedLedgerDefaultAckQuorum=1
+      - advertisedAddress=broker
+      - advertisedListeners=external:pulsar://127.0.0.1:6650
+      - PULSAR_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+      bookie:
+        condition: service_started
+    ports:
+      - "6650:6650"
+      - "8080:8080"
+    command: bash -c "bin/apply-config-from-env.py conf/broker.conf && exec bin/pulsar broker"
+
+  # Pulsar manager for UI action
+  pulsar_ui:
+    image: apachepulsar/pulsar-manager:latest
+    container_name: pulsar_ui
+    hostname: pulsar_ui
+    restart: on-failure
+    networks:
+      - pulsar
+    environment:
+      - SPRING_CONFIGURATION_FILE=/pulsar-manager/pulsar-manager/application.properties
+      - JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m
+    ports:
+      - "9527:9527"
+      - "7750:7750"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s -I http://localhost:7750/swagger-ui.html | grep -q 'HTTP/1.1 200'",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 5

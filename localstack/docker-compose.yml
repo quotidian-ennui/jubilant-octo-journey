@@ -1,4 +1,4 @@
-version: '3.2'
+# version: '3'
 services:
   localstack_http:
     image: localstack/localstack:${LOCALSTACK_VERSION}

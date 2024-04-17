@@ -7,7 +7,7 @@ services:
       GD_DB_NAME: generatedata
       GD_DB_USERNAME: root
     ports:
-      - 8000:80
+      - 8000:8080
     links:
       - mysql
   mysql:

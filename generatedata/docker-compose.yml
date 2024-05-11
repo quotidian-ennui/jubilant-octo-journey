@@ -1,7 +1,6 @@
-# version: '3'
 services:
   generatedata:
-    image: mvisonneau/generatedata:latest
+    image: ghcr.io/mvisonneau/generatedata:latest
     environment:
       GD_DB_HOSTNAME: mysql
       GD_DB_NAME: generatedata
@@ -10,8 +9,9 @@ services:
       - 8000:8080
     links:
       - mysql
+
   mysql:
-    image: mysql:5.7
+    image: docker.io/library/mariadb:10.4
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: 'true'
       MYSQL_DATABASE: generatedata

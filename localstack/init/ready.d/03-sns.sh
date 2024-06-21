@@ -1,17 +1,28 @@
 #!/bin/bash
 # Note the arn are all derivable other than the subscription arn, since this is
 # localstack
+set -eo pipefail
 set -x
+
 AWS_REG_AC="us-east-1:000000000000"
 ARN="arn:aws"
-TOPIC="zzlc-sns"
-TOPIC_ARN="$ARN:sns:$AWS_REG_AC:$TOPIC"
-QUEUE="zzlc"
-QUEUE_ARN="$ARN:sqs:$AWS_REG_AC:$QUEUE"
+QUEUES='inbound outbound'
 
-awslocal sns create-topic --name "$TOPIC"
-awslocal sns subscribe --topic-arn "$TOPIC_ARN" --protocol sqs --notification-endpoint "$QUEUE_ARN"
-awslocal sns publish --topic-arn "$TOPIC_ARN" --message "hello"
-awslocal sqs receive-message --queue-url "$QUEUE"
-awslocal sqs purge-queue --queue-url "$QUEUE"
+make_sns() {
+  for q in $QUEUES;
+  do
+    topic="$q-sns"
+    topicARN="$ARN:sns:$AWS_REG_AC:$topic"
+    queueARN="$ARN:sqs:$AWS_REG_AC:$q"
+    awslocal sqs create-queue --queue-name "$q"
+    awslocal sns create-topic --name "$topic"
+    awslocal sns subscribe --topic-arn "$topicARN" --protocol sqs --notification-endpoint "$queueARN"
+    awslocal sns publish --topic-arn "$topicARN" --message "hello"
+    awslocal sqs receive-message --queue-url "$q"
+    awslocal sqs purge-queue --queue-url "$q"
+  done
+
+}
+
+make_sns
 set +x

@@ -1,6 +1,6 @@
 # version: '3'
 services:
-  localstack_http:
+  localstack:
     image: localstack/localstack:${LOCALSTACK_VERSION}
     environment:
       - SERVICES=s3,sqs,sns,kms,kinesis
@@ -11,6 +11,14 @@ services:
       - "4566:4566"
     networks:
       - localstack_core
+    healthcheck:
+      test: ["CMD-SHELL", "awslocal sqs get-queue-url --queue-name zz_ready"]
+      # but no JQ.
+      # test: ["CMD-SHELL", "[[ "$(curl -s localhost:4566/_localstack/init | jq .completed.READY)" == "true" ]] && true"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
 networks:
   localstack_core:

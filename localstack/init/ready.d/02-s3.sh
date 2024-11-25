@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -eo pipefail
 set -x
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_REGION=us-east-1
 
 buckets='s3://zzlc-s3-work
   s3://zzlc

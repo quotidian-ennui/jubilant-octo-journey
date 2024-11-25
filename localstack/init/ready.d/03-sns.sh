@@ -2,6 +2,10 @@
 # Note the arn are all derivable other than the subscription arn, since this is
 # localstack
 set -eo pipefail
+export AWS_ACCESS_KEY_ID=test
+export AWS_SECRET_ACCESS_KEY=test
+export AWS_REGION=us-east-1
+
 set -x
 
 AWS_REG_AC="us-east-1:000000000000"

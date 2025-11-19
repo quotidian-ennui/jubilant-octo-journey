@@ -1,0 +1,13 @@
+services:
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/jaeger:${JAEGER_VERSION}
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - jaeger
+
+networks:
+  jaeger:

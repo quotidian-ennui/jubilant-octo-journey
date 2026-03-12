@@ -2,7 +2,7 @@
 services:
   dillinger:
     container_name: dillinger
-    image: linuxserver/dillinger:${DILLINGER_VERSION}
+    image: linuxserver/dillinger:3.39.1
     ports:
       - "58081:8080"
     networks:

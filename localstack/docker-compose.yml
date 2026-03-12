@@ -1,7 +1,7 @@
 # version: '3'
 services:
   localstack:
-    image: localstack/localstack:${LOCALSTACK_VERSION}
+    image: localstack/localstack:4.14.0
     environment:
       - SERVICES=s3,sqs,sns,kms,kinesis
     volumes:

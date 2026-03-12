@@ -1,4 +1,4 @@
-FROM apache/superset:4.1.4
+FROM apache/superset:6.0.0
 # Switching to root to install the required packages
 USER root
 RUN pip install "elasticsearch-dbapi>=0.2.9, <0.3.0"
